@@ -1,0 +1,13 @@
+name: Ping API every hour
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # 毎時0分
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call your endpoint
+        run: |
+          curl -X GET "https://makers-release.vercel.app/b_send_slack"

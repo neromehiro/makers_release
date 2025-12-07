@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import re
+from http.server import BaseHTTPRequestHandler
 
 import requests
 
@@ -217,6 +218,34 @@ def handler(request) -> Dict[str, Any]:
         "headers": {"Content-Type": "application/json"},
         "body": json.dumps(body, ensure_ascii=False),
     }
+
+
+class Handler(BaseHTTPRequestHandler):
+    """
+    Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
+    Delegates to the function-based handler above.
+    """
+
+    def _dispatch(self):
+        result = handler({})
+        status = result.get("statusCode", 200)
+        headers = result.get("headers", {}) or {}
+        body = result.get("body", "")
+        if not isinstance(body, (str, bytes)):
+            body = json.dumps(body, ensure_ascii=False)
+
+        self.send_response(status)
+        for k, v in headers.items():
+            self.send_header(k, v)
+        self.end_headers()
+        payload = body if isinstance(body, bytes) else body.encode("utf-8")
+        self.wfile.write(payload)
+
+    def do_GET(self):
+        self._dispatch()
+
+    def do_POST(self):
+        self._dispatch()
 
 
 if __name__ == "__main__":
