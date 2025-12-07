@@ -21,7 +21,8 @@ OUTPUT_PATH = OUTPUT_DIR / "a1_check_releace.json"
 
 def load_prtimes_ids() -> List[str]:
     """Load company_id list from spreadsheet2json output."""
-    data = load_spreadsheet_data(persist=False)
+    # 本番でも毎回スプレッドシートを読み直す
+    data = load_spreadsheet_data(force_refresh=True, persist=False)
     raw_ids = data.get("prtimes_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for cid in raw_ids:

@@ -679,73 +679,75 @@
 185 |         "pr_count": len(pr_urls),
 186 |         "note_count": len(note_urls),
 187 |         "messages_sent": len(responses),
-188 |     }
-189 |     return summary
-190 | 
-191 | 
-192 | def main():
-193 |     summary = run_notification(window_hours=1)
-194 |     print(
-195 |         f"Slack posted: pr_count={summary['pr_count']}, "
-196 |         f"note_count={summary['note_count']}, "
-197 |         f"messages_sent={summary['messages_sent']}"
-198 |     )
-199 | 
-200 | 
-201 | def build_response() -> Dict[str, Any]:
-202 |     """Shared HTTP response builder for serverless/handler entrypoints."""
-203 |     try:
-204 |         summary = run_notification(window_hours=1)
-205 |         body = {"ok": True, **summary}
-206 |         status_code = 200
-207 |     except requests.HTTPError as exc:
-208 |         body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
-209 |         status_code = 502
-210 |     except Exception as exc:
-211 |         body = {"ok": False, "error": str(exc)}
-212 |         status_code = 500
-213 | 
-214 |     return {
-215 |         "statusCode": status_code,
-216 |         "headers": {"Content-Type": "application/json"},
-217 |         "body": json.dumps(body, ensure_ascii=False),
-218 |     }
-219 | 
-220 | 
-221 | class Handler(BaseHTTPRequestHandler):
-222 |     """
-223 |     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
-224 |     Delegates to build_response above.
-225 |     """
-226 | 
-227 |     def _dispatch(self):
-228 |         result = build_response()
-229 |         status = result.get("statusCode", 200)
-230 |         headers = result.get("headers", {}) or {}
-231 |         body = result.get("body", "")
-232 |         if not isinstance(body, (str, bytes)):
-233 |             body = json.dumps(body, ensure_ascii=False)
-234 | 
-235 |         self.send_response(status)
-236 |         for k, v in headers.items():
-237 |             self.send_header(k, v)
-238 |         self.end_headers()
-239 |         payload = body if isinstance(body, bytes) else body.encode("utf-8")
-240 |         self.wfile.write(payload)
-241 | 
-242 |     def do_GET(self):
-243 |         self._dispatch()
-244 | 
-245 |     def do_POST(self):
-246 |         self._dispatch()
-247 | 
-248 | 
-249 | # Alias expected by older Vercel Python runtimes: treat `handler` as a Handler subclass.
-250 | handler = Handler
-251 | 
-252 | 
-253 | if __name__ == "__main__":
-254 |     main()
+188 |         "pr_ids": pr_data.get("target_ids", []),
+189 |         "note_ids": note_data.get("target_ids", []),
+190 |     }
+191 |     return summary
+192 | 
+193 | 
+194 | def main():
+195 |     summary = run_notification(window_hours=1)
+196 |     print(
+197 |         f"Slack posted: pr_count={summary['pr_count']}, "
+198 |         f"note_count={summary['note_count']}, "
+199 |         f"messages_sent={summary['messages_sent']}"
+200 |     )
+201 | 
+202 | 
+203 | def build_response() -> Dict[str, Any]:
+204 |     """Shared HTTP response builder for serverless/handler entrypoints."""
+205 |     try:
+206 |         summary = run_notification(window_hours=1)
+207 |         body = {"ok": True, **summary}
+208 |         status_code = 200
+209 |     except requests.HTTPError as exc:
+210 |         body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
+211 |         status_code = 502
+212 |     except Exception as exc:
+213 |         body = {"ok": False, "error": str(exc)}
+214 |         status_code = 500
+215 | 
+216 |     return {
+217 |         "statusCode": status_code,
+218 |         "headers": {"Content-Type": "application/json"},
+219 |         "body": json.dumps(body, ensure_ascii=False),
+220 |     }
+221 | 
+222 | 
+223 | class Handler(BaseHTTPRequestHandler):
+224 |     """
+225 |     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
+226 |     Delegates to build_response above.
+227 |     """
+228 | 
+229 |     def _dispatch(self):
+230 |         result = build_response()
+231 |         status = result.get("statusCode", 200)
+232 |         headers = result.get("headers", {}) or {}
+233 |         body = result.get("body", "")
+234 |         if not isinstance(body, (str, bytes)):
+235 |             body = json.dumps(body, ensure_ascii=False)
+236 | 
+237 |         self.send_response(status)
+238 |         for k, v in headers.items():
+239 |             self.send_header(k, v)
+240 |         self.end_headers()
+241 |         payload = body if isinstance(body, bytes) else body.encode("utf-8")
+242 |         self.wfile.write(payload)
+243 | 
+244 |     def do_GET(self):
+245 |         self._dispatch()
+246 | 
+247 |     def do_POST(self):
+248 |         self._dispatch()
+249 | 
+250 | 
+251 | # Alias expected by older Vercel Python runtimes: treat `handler` as a Handler subclass.
+252 | handler = Handler
+253 | 
+254 | 
+255 | if __name__ == "__main__":
+256 |     main()
 --------------------------------------------------------------------------------
 
 /api/prtimes_notify.py:
@@ -844,97 +846,102 @@
  29 |         ".DS_Store", "*.swp", "*~",
  30 |         # パッケージ管理ツールの成果物
  31 |         "poetry.lock", "Pipfile.lock",
- 32 |         # Docker関連
- 33 |         "docker-compose.override.yml", ".dockerignore",
- 34 |         # その他
- 35 |         "*.log", "*.pot", "*.mo", "cline_log.txt", "git_tracking_status.txt",
- 36 |         # 本番環境用秘密ファイル
- 37 |         "*.pem", ".secrets", ".env.act",
- 38 |         # 出力ファイル自体を除外
- 39 |         "dump_result.txt"
- 40 |     ]
- 41 | 
- 42 |     # ファイル名のみを取得
- 43 |     file_name = os.path.basename(file_path)
- 44 | 
- 45 |     # ディレクトリパスを含む相対パス
- 46 |     rel_path = file_path
- 47 | 
- 48 |     # 除外パターンとマッチするかチェック
- 49 |     for pattern in exclude_patterns:
- 50 |         # ファイル名だけでマッチングを試みる
- 51 |         if fnmatch.fnmatch(file_name, pattern):
- 52 |             return True
- 53 | 
- 54 |         # パスを含めたマッチングも試みる
- 55 |         if fnmatch.fnmatch(rel_path, pattern):
- 56 |             return True
- 57 | 
- 58 |         # __pycache__ ディレクトリ内のファイルを除外
- 59 |         if "__pycache__" in rel_path:
- 60 |             return True
- 61 | 
- 62 |     # .git 配下は丸ごと除外
- 63 |     if rel_path.startswith(".git") or "/.git/" in rel_path:
- 64 |         return True
- 65 | 
- 66 |     return False
- 67 | 
- 68 | def dump_files_to_txt(target_dir):
- 69 |     """
- 70 |     指定されたディレクトリ内のファイルを走査し、内容をdump_result.txtに出力する
- 71 |     除外リストに含まれるファイルはスキップする
- 72 |     フォルダとファイルはアルファベット順にソートされる
- 73 |     """
- 74 |     # 出力ファイルのパスを指定されたディレクトリ内に設定
- 75 |     output_file = os.path.join(target_dir, "dump_result.txt")
- 76 | 
- 77 |     # 相対パスの基準となるディレクトリ
- 78 |     base_dir = target_dir
- 79 | 
- 80 |     # ファイルパスを収集してソートする
- 81 |     all_files = []
- 82 |     for root, dirs, files in os.walk(target_dir):
- 83 |         # .git など除外ディレクトリを辿らないようフィルタ
- 84 |         dirs[:] = [d for d in dirs if not should_exclude(os.path.relpath(os.path.join(root, d), start=base_dir))]
- 85 |         # ディレクトリをアルファベット順にソート
- 86 |         dirs.sort()
- 87 |         # ファイルをアルファベット順にソート
- 88 |         for fname in sorted(files):
- 89 |             abs_path = os.path.join(root, fname)
- 90 | 
- 91 |             # 出力ファイル自体はスキップ
- 92 |             if abs_path == output_file:
- 93 |                 continue
- 94 | 
- 95 |             # 除外対象のファイルはスキップ
- 96 |             rel_path = os.path.relpath(abs_path, start=base_dir)
- 97 |             if should_exclude(rel_path):
+ 32 |         # Vercelキャッシュ
+ 33 |         ".vercel/*", "*/.vercel/*",
+ 34 |         # Docker関連
+ 35 |         "docker-compose.override.yml", ".dockerignore",
+ 36 |         # その他
+ 37 |         "*.log", "*.pot", "*.mo", "cline_log.txt", "git_tracking_status.txt",
+ 38 |         # 本番環境用秘密ファイル
+ 39 |         "*.pem", ".secrets", ".env.act",
+ 40 |         # 出力ファイル自体を除外
+ 41 |         "dump_result.txt"
+ 42 |     ]
+ 43 | 
+ 44 |     # ファイル名のみを取得
+ 45 |     file_name = os.path.basename(file_path)
+ 46 | 
+ 47 |     # ディレクトリパスを含む相対パス
+ 48 |     rel_path = file_path
+ 49 | 
+ 50 |     # 除外パターンとマッチするかチェック
+ 51 |     for pattern in exclude_patterns:
+ 52 |         # ファイル名だけでマッチングを試みる
+ 53 |         if fnmatch.fnmatch(file_name, pattern):
+ 54 |             return True
+ 55 | 
+ 56 |         # パスを含めたマッチングも試みる
+ 57 |         if fnmatch.fnmatch(rel_path, pattern):
+ 58 |             return True
+ 59 | 
+ 60 |         # __pycache__ ディレクトリ内のファイルを除外
+ 61 |         if "__pycache__" in rel_path:
+ 62 |             return True
+ 63 | 
+ 64 |     # .git 配下は丸ごと除外
+ 65 |     if rel_path.startswith(".git") or "/.git/" in rel_path:
+ 66 |         return True
+ 67 |     # .vecel 配下は丸ごと除外
+ 68 |     if rel_path.startswith(".vecel") or "/.vecel/" in rel_path:
+ 69 |         return True
+ 70 | 
+ 71 |     return False
+ 72 | 
+ 73 | def dump_files_to_txt(target_dir):
+ 74 |     """
+ 75 |     指定されたディレクトリ内のファイルを走査し、内容をdump_result.txtに出力する
+ 76 |     除外リストに含まれるファイルはスキップする
+ 77 |     フォルダとファイルはアルファベット順にソートされる
+ 78 |     """
+ 79 |     # 出力ファイルのパスを指定されたディレクトリ内に設定
+ 80 |     output_file = os.path.join(target_dir, "dump_result.txt")
+ 81 | 
+ 82 |     # 相対パスの基準となるディレクトリ
+ 83 |     base_dir = target_dir
+ 84 | 
+ 85 |     # ファイルパスを収集してソートする
+ 86 |     all_files = []
+ 87 |     for root, dirs, files in os.walk(target_dir):
+ 88 |         # .git など除外ディレクトリを辿らないようフィルタ
+ 89 |         dirs[:] = [d for d in dirs if not should_exclude(os.path.relpath(os.path.join(root, d), start=base_dir))]
+ 90 |         # ディレクトリをアルファベット順にソート
+ 91 |         dirs.sort()
+ 92 |         # ファイルをアルファベット順にソート
+ 93 |         for fname in sorted(files):
+ 94 |             abs_path = os.path.join(root, fname)
+ 95 | 
+ 96 |             # 出力ファイル自体はスキップ
+ 97 |             if abs_path == output_file:
  98 |                 continue
  99 | 
-100 |             all_files.append((rel_path, abs_path))
-101 | 
-102 |     # ファイルをアルファベット順にソート
-103 |     all_files.sort()
+100 |             # 除外対象のファイルはスキップ
+101 |             rel_path = os.path.relpath(abs_path, start=base_dir)
+102 |             if should_exclude(rel_path):
+103 |                 continue
 104 | 
-105 |     with open(output_file, "w", encoding="utf-8") as out:
-106 |         for rel_path, abs_path in all_files:
-107 |             out.write(f"/{rel_path}:\n")
-108 |             out.write("-" * 80 + "\n")
-109 |             try:
-110 |                 with open(abs_path, "r", encoding="utf-8") as f:
-111 |                     for i, line in enumerate(f, 1):
-112 |                         out.write(f"{i:3} | {line.rstrip()}\n")
-113 |             except Exception as e:
-114 |                 out.write(f"[ERROR READING FILE]: {e}\n")
-115 |             out.write("-" * 80 + "\n\n")
-116 | 
-117 | if __name__ == "__main__":
-118 |     # コマンドライン引数を使わず、直接変数に値を設定
-119 |     # target_directory = "/Users/neromehiro/hiro folder/my_Works/programing/aimsales-api/module/b_AddCompany"
-120 |     target_directory = "/Users/neromehiro/hiro folder/my_Works/programing/makers_release"
-121 |     dump_files_to_txt(target_directory)
-122 |     print(f"✅ 出力完了: {target_directory}/dump_result.txt")
+105 |             all_files.append((rel_path, abs_path))
+106 | 
+107 |     # ファイルをアルファベット順にソート
+108 |     all_files.sort()
+109 | 
+110 |     with open(output_file, "w", encoding="utf-8") as out:
+111 |         for rel_path, abs_path in all_files:
+112 |             out.write(f"/{rel_path}:\n")
+113 |             out.write("-" * 80 + "\n")
+114 |             try:
+115 |                 with open(abs_path, "r", encoding="utf-8") as f:
+116 |                     for i, line in enumerate(f, 1):
+117 |                         out.write(f"{i:3} | {line.rstrip()}\n")
+118 |             except Exception as e:
+119 |                 out.write(f"[ERROR READING FILE]: {e}\n")
+120 |             out.write("-" * 80 + "\n\n")
+121 | 
+122 | if __name__ == "__main__":
+123 |     # コマンドライン引数を使わず、直接変数に値を設定
+124 |     # target_directory = "/Users/neromehiro/hiro folder/my_Works/programing/aimsales-api/module/b_AddCompany"
+125 |     target_directory = "/Users/neromehiro/hiro folder/my_Works/programing/makers_release"
+126 |     dump_files_to_txt(target_directory)
+127 |     print(f"✅ 出力完了: {target_directory}/dump_result.txt")
 --------------------------------------------------------------------------------
 
 /requirements.txt:

@@ -28,7 +28,8 @@ HTTP_HEADERS = {
 
 def load_x_ids() -> List[str]:
     """Load X(Twitter) user IDs from spreadsheet2json output."""
-    data = load_spreadsheet_data(persist=False)
+    # 本番でも毎回スプレッドシートを読み直す
+    data = load_spreadsheet_data(force_refresh=True, persist=False)
     raw_ids = data.get("x_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for x_id in raw_ids:

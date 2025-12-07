@@ -29,6 +29,8 @@ def should_exclude(file_path):
         ".DS_Store", "*.swp", "*~",
         # パッケージ管理ツールの成果物
         "poetry.lock", "Pipfile.lock",
+        # Vercelキャッシュ
+        ".vercel/*", "*/.vercel/*",
         # Docker関連
         "docker-compose.override.yml", ".dockerignore",
         # その他
@@ -61,6 +63,9 @@ def should_exclude(file_path):
 
     # .git 配下は丸ごと除外
     if rel_path.startswith(".git") or "/.git/" in rel_path:
+        return True
+    # .vecel 配下は丸ごと除外
+    if rel_path.startswith(".vecel") or "/.vecel/" in rel_path:
         return True
     
     return False

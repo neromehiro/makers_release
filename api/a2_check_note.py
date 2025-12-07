@@ -45,7 +45,8 @@ def _normalize_note_id(value: str) -> str:
 
 def load_note_ids() -> List[str]:
     """Load note user IDs from spreadsheet2json output."""
-    data = load_spreadsheet_data(persist=False)
+    # 本番でも毎回スプレッドシートを読み直す
+    data = load_spreadsheet_data(force_refresh=True, persist=False)
     raw_ids = data.get("note_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for note_id in raw_ids:
