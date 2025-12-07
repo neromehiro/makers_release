@@ -50,7 +50,7 @@ HTTP_HEADERS = {
 def send_to_slack(
     text: str,
     *,
-    enable_unfurl: bool = False,
+    enable_unfurl: bool = True,
     blocks: Optional[List[Dict[str, Any]]] = None,
 ) -> requests.Response:
     if not SLACK_WEBHOOK_URL:
@@ -112,6 +112,14 @@ def _source_label(url: str) -> str:
     return "update"
 
 
+def _source_icon(url: str) -> str:
+    if "note.com" in url:
+        return "https://play-lh.googleusercontent.com/Jcdw4nXOdeg3pMPJldirClrj__oBd-UVZPehnb9Zn5MtWvWCQivgLqJ1mux0JjyxvA"
+    if "prtimes.jp" in url:
+        return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTj6jiPk40UN8Vih6Vtaqv0DiIIF3ZUXWms1g&s"
+    return ""
+
+
 def send_with_preview(url: str) -> requests.Response:
     """Send a Slack message with manual preview via blocks."""
     meta = fetch_preview(url)
@@ -123,21 +131,22 @@ def send_with_preview(url: str) -> requests.Response:
         description = description[:500] + "…"
 
     label = _source_label(url)
-    quoted = f"> :bookmark_tabs: {label}\n> *<{url}|{title}>*\n> {description}".strip()
+    icon = _source_icon(url)
+    quoted = f"> *<{url}|{title}>*\n> {description}".strip()
 
-    section: Dict[str, Any] = {
-        "type": "section",
-        "text": {"type": "mrkdwn", "text": quoted},
-    }
-    # Use accessory to keep the image thumbnail-sized and inside the quoted block.
+    context_elements: List[Dict[str, Any]] = []
+    if icon:
+        context_elements.append({"type": "image", "image_url": icon, "alt_text": label})
+    context_elements.append({"type": "mrkdwn", "text": label})
+
+    section: Dict[str, Any] = {"type": "section", "text": {"type": "mrkdwn", "text": quoted}}
     if image:
-        section["accessory"] = {
-            "type": "image",
-            "image_url": image,
-            "alt_text": title or "preview",
-        }
+        section["accessory"] = {"type": "image", "image_url": image, "alt_text": title or "preview"}
 
-    blocks: List[Dict[str, Any]] = [section]
+    blocks: List[Dict[str, Any]] = [
+        {"type": "context", "elements": context_elements},
+        section,
+    ]
 
     return send_to_slack(url, enable_unfurl=True, blocks=blocks)
 
