@@ -52,21 +52,23 @@ def send_to_slack(text: str, *, enable_unfurl: bool = False) -> requests.Respons
     return resp
 
 
-def main():
-    # Always refresh spreadsheet data before checking feeds
+def run_notification(window_hours: int = 1) -> dict:
+    """
+    Execute release/note checks and post results to Slack.
+    Returns a summary dict for logging/HTTP responses.
+    """
     load_spreadsheet_data(force_refresh=True)
 
-    pr_data = pr_checker.check_releases(window_hours=1)
+    pr_data = pr_checker.check_releases(window_hours=window_hours)
     pr_checker.write_output(pr_data)
 
-    note_data = note_checker.check_notes(window_hours=1)
+    note_data = note_checker.check_notes(window_hours=window_hours)
     note_checker.write_output(note_data)
 
     pr_urls = [r.get("url", "") for r in pr_data.get("releases", []) if r.get("url")]
     note_urls = [a.get("url", "") for a in note_data.get("articles", []) if a.get("url")]
 
     responses = []
-    # Unfurl for both PR TIMES and note so previews show up.
     for url in pr_urls:
         responses.append(send_to_slack(url, enable_unfurl=True))
     for url in note_urls:
@@ -75,9 +77,20 @@ def main():
     if not pr_urls and not note_urls:
         responses.append(send_to_slack("今回はありません"))
 
+    summary = {
+        "pr_count": len(pr_urls),
+        "note_count": len(note_urls),
+        "messages_sent": len(responses),
+    }
+    return summary
+
+
+def main():
+    summary = run_notification(window_hours=1)
     print(
-        f"Slack posted: pr_count={len(pr_urls)}, note_count={len(note_urls)}, "
-        f"messages_sent={len(responses)}"
+        f"Slack posted: pr_count={summary['pr_count']}, "
+        f"note_count={summary['note_count']}, "
+        f"messages_sent={summary['messages_sent']}"
     )
 
 
