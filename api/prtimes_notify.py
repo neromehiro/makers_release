@@ -36,7 +36,7 @@ def handler(request) -> Dict[str, Any]:
     Triggers PR TIMES + note checks and posts results to Slack.
     """
     try:
-        summary = b_send_slack.run_notification(window_hours=1)
+        summary = b_send_slack.run_notification(window_hours=1, persist_cache=False)
         body = {"ok": True, **summary}
         status = HTTPStatus.OK
     except requests.HTTPError as exc:

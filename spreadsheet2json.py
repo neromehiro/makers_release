@@ -99,25 +99,26 @@ def write_json(data: dict) -> None:
     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=True, indent=2), encoding="utf-8")
 
 
-def load_spreadsheet_data(force_refresh: bool = False) -> Mapping[str, List[str]]:
+def load_spreadsheet_data(
+    force_refresh: bool = False, *, persist: bool = True
+) -> Mapping[str, List[str]]:
     """
     Return parsed sheet data, optionally re-fetching the latest CSV.
 
     Falls back to re-fetching if the on-disk JSON is missing or invalid.
+    When persist=False (e.g., API on read-only FS), skip writing the JSON cache.
     """
-    if force_refresh or not OUTPUT_PATH.exists():
-        csv_text = fetch_sheet_csv()
-        data = parse_ids(csv_text)
-        write_json(data)
-        return data
+    if not force_refresh and OUTPUT_PATH.exists():
+        try:
+            return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
 
-    try:
-        return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        csv_text = fetch_sheet_csv()
-        data = parse_ids(csv_text)
+    csv_text = fetch_sheet_csv()
+    data = parse_ids(csv_text)
+    if persist:
         write_json(data)
-        return data
+    return data
 
 
 def main() -> None:

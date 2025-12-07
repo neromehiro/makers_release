@@ -28,7 +28,7 @@ HTTP_HEADERS = {
 
 def load_x_ids() -> List[str]:
     """Load X(Twitter) user IDs from spreadsheet2json output."""
-    data = load_spreadsheet_data()
+    data = load_spreadsheet_data(persist=False)
     raw_ids = data.get("x_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for x_id in raw_ids:
@@ -134,8 +134,12 @@ def check_x(window_hours: int = 1) -> Dict[str, Any]:
 
 
 def write_output(data: Dict[str, Any]) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        # Skip persist on read-only filesystems (e.g., serverless)
+        pass
 
 
 def main():

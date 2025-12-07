@@ -638,12 +638,12 @@
 156 |     return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
 157 | 
 158 | 
-159 | def run_notification(window_hours: int = 1) -> dict:
+159 | def run_notification(window_hours: int = 1, *, persist_cache: bool = True) -> dict:
 160 |     """
 161 |     Execute release/note checks and post results to Slack.
 162 |     Returns a summary dict for logging/HTTP responses.
 163 |     """
-164 |     load_spreadsheet_data(force_refresh=True)
+164 |     load_spreadsheet_data(force_refresh=True, persist=persist_cache)
 165 | 
 166 |     pr_data = pr_checker.check_releases(window_hours=window_hours)
 167 |     pr_checker.write_output(pr_data)
@@ -680,58 +680,60 @@
 198 |     )
 199 | 
 200 | 
-201 | def handler(request) -> Dict[str, Any]:
-202 |     """
-203 |     Vercel Python entrypoint to trigger the notification run via HTTP.
-204 |     """
-205 |     try:
-206 |         summary = run_notification(window_hours=1)
-207 |         body = {"ok": True, **summary}
-208 |         status_code = 200
-209 |     except requests.HTTPError as exc:
-210 |         body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
-211 |         status_code = 502
-212 |     except Exception as exc:
-213 |         body = {"ok": False, "error": str(exc)}
-214 |         status_code = 500
-215 | 
-216 |     return {
-217 |         "statusCode": status_code,
-218 |         "headers": {"Content-Type": "application/json"},
-219 |         "body": json.dumps(body, ensure_ascii=False),
-220 |     }
-221 | 
-222 | 
-223 | class Handler(BaseHTTPRequestHandler):
-224 |     """
-225 |     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
-226 |     Delegates to the function-based handler above.
-227 |     """
-228 | 
-229 |     def _dispatch(self):
-230 |         result = handler({})
-231 |         status = result.get("statusCode", 200)
-232 |         headers = result.get("headers", {}) or {}
-233 |         body = result.get("body", "")
-234 |         if not isinstance(body, (str, bytes)):
-235 |             body = json.dumps(body, ensure_ascii=False)
-236 | 
-237 |         self.send_response(status)
-238 |         for k, v in headers.items():
-239 |             self.send_header(k, v)
-240 |         self.end_headers()
-241 |         payload = body if isinstance(body, bytes) else body.encode("utf-8")
-242 |         self.wfile.write(payload)
-243 | 
-244 |     def do_GET(self):
-245 |         self._dispatch()
-246 | 
-247 |     def do_POST(self):
-248 |         self._dispatch()
-249 | 
-250 | 
-251 | if __name__ == "__main__":
-252 |     main()
+201 | def build_response() -> Dict[str, Any]:
+202 |     """Shared HTTP response builder for serverless/handler entrypoints."""
+203 |     try:
+204 |         summary = run_notification(window_hours=1)
+205 |         body = {"ok": True, **summary}
+206 |         status_code = 200
+207 |     except requests.HTTPError as exc:
+208 |         body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
+209 |         status_code = 502
+210 |     except Exception as exc:
+211 |         body = {"ok": False, "error": str(exc)}
+212 |         status_code = 500
+213 | 
+214 |     return {
+215 |         "statusCode": status_code,
+216 |         "headers": {"Content-Type": "application/json"},
+217 |         "body": json.dumps(body, ensure_ascii=False),
+218 |     }
+219 | 
+220 | 
+221 | class Handler(BaseHTTPRequestHandler):
+222 |     """
+223 |     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
+224 |     Delegates to build_response above.
+225 |     """
+226 | 
+227 |     def _dispatch(self):
+228 |         result = build_response()
+229 |         status = result.get("statusCode", 200)
+230 |         headers = result.get("headers", {}) or {}
+231 |         body = result.get("body", "")
+232 |         if not isinstance(body, (str, bytes)):
+233 |             body = json.dumps(body, ensure_ascii=False)
+234 | 
+235 |         self.send_response(status)
+236 |         for k, v in headers.items():
+237 |             self.send_header(k, v)
+238 |         self.end_headers()
+239 |         payload = body if isinstance(body, bytes) else body.encode("utf-8")
+240 |         self.wfile.write(payload)
+241 | 
+242 |     def do_GET(self):
+243 |         self._dispatch()
+244 | 
+245 |     def do_POST(self):
+246 |         self._dispatch()
+247 | 
+248 | 
+249 | # Alias expected by older Vercel Python runtimes: treat `handler` as a Handler subclass.
+250 | handler = Handler
+251 | 
+252 | 
+253 | if __name__ == "__main__":
+254 |     main()
 --------------------------------------------------------------------------------
 
 /api/prtimes_notify.py:
@@ -774,7 +776,7 @@
  36 |     Triggers PR TIMES + note checks and posts results to Slack.
  37 |     """
  38 |     try:
- 39 |         summary = b_send_slack.run_notification(window_hours=1)
+ 39 |         summary = b_send_slack.run_notification(window_hours=1, persist_cache=False)
  40 |         body = {"ok": True, **summary}
  41 |         status = HTTPStatus.OK
  42 |     except requests.HTTPError as exc:
@@ -1031,34 +1033,35 @@
  99 |     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=True, indent=2), encoding="utf-8")
 100 | 
 101 | 
-102 | def load_spreadsheet_data(force_refresh: bool = False) -> Mapping[str, List[str]]:
-103 |     """
-104 |     Return parsed sheet data, optionally re-fetching the latest CSV.
-105 | 
-106 |     Falls back to re-fetching if the on-disk JSON is missing or invalid.
-107 |     """
-108 |     if force_refresh or not OUTPUT_PATH.exists():
-109 |         csv_text = fetch_sheet_csv()
-110 |         data = parse_ids(csv_text)
-111 |         write_json(data)
-112 |         return data
-113 | 
-114 |     try:
-115 |         return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
-116 |     except Exception:
-117 |         csv_text = fetch_sheet_csv()
-118 |         data = parse_ids(csv_text)
-119 |         write_json(data)
-120 |         return data
-121 | 
+102 | def load_spreadsheet_data(
+103 |     force_refresh: bool = False, *, persist: bool = True
+104 | ) -> Mapping[str, List[str]]:
+105 |     """
+106 |     Return parsed sheet data, optionally re-fetching the latest CSV.
+107 | 
+108 |     Falls back to re-fetching if the on-disk JSON is missing or invalid.
+109 |     When persist=False (e.g., API on read-only FS), skip writing the JSON cache.
+110 |     """
+111 |     if not force_refresh and OUTPUT_PATH.exists():
+112 |         try:
+113 |             return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+114 |         except Exception:
+115 |             pass
+116 | 
+117 |     csv_text = fetch_sheet_csv()
+118 |     data = parse_ids(csv_text)
+119 |     if persist:
+120 |         write_json(data)
+121 |     return data
 122 | 
-123 | def main() -> None:
-124 |     csv_text = fetch_sheet_csv()
-125 |     data = parse_ids(csv_text)
-126 |     write_json(data)
-127 | 
+123 | 
+124 | def main() -> None:
+125 |     csv_text = fetch_sheet_csv()
+126 |     data = parse_ids(csv_text)
+127 |     write_json(data)
 128 | 
-129 | if __name__ == "__main__":
-130 |     main()
+129 | 
+130 | if __name__ == "__main__":
+131 |     main()
 --------------------------------------------------------------------------------
 

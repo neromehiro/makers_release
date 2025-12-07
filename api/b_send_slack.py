@@ -156,12 +156,12 @@ def send_with_preview(url: str) -> requests.Response:
     return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
 
 
-def run_notification(window_hours: int = 1) -> dict:
+def run_notification(window_hours: int = 1, *, persist_cache: bool = True) -> dict:
     """
     Execute release/note checks and post results to Slack.
     Returns a summary dict for logging/HTTP responses.
     """
-    load_spreadsheet_data(force_refresh=True)
+    load_spreadsheet_data(force_refresh=True, persist=persist_cache)
 
     pr_data = pr_checker.check_releases(window_hours=window_hours)
     pr_checker.write_output(pr_data)

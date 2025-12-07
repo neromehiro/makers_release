@@ -45,7 +45,7 @@ def _normalize_note_id(value: str) -> str:
 
 def load_note_ids() -> List[str]:
     """Load note user IDs from spreadsheet2json output."""
-    data = load_spreadsheet_data()
+    data = load_spreadsheet_data(persist=False)
     raw_ids = data.get("note_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for note_id in raw_ids:
@@ -151,8 +151,12 @@ def check_notes(window_hours: int = 1) -> Dict[str, Any]:
 
 
 def write_output(data: Dict[str, Any]) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        # Skip persist on read-only filesystems (e.g., serverless)
+        pass
 
 
 def main():

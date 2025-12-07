@@ -21,7 +21,7 @@ OUTPUT_PATH = OUTPUT_DIR / "a1_check_releace.json"
 
 def load_prtimes_ids() -> List[str]:
     """Load company_id list from spreadsheet2json output."""
-    data = load_spreadsheet_data()
+    data = load_spreadsheet_data(persist=False)
     raw_ids = data.get("prtimes_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
     for cid in raw_ids:
@@ -136,8 +136,12 @@ def check_releases(window_hours: int = 1) -> Dict[str, Any]:
 
 
 def write_output(data: Dict[str, Any]) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        # Skip persist on read-only filesystems (e.g., serverless)
+        pass
 
 
 def main():
