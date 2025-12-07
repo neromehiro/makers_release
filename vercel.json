@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/prtimes_notify",
-      "schedule": "36 15 * * *"
+      "schedule": "44 6 * * *"
     }
   ]
 }
