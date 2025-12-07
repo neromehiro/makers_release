@@ -2,6 +2,8 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+import re
 
 import requests
 
@@ -36,9 +38,21 @@ def _load_env_file():
 _load_env_file()
 
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
+HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+}
 
 
-def send_to_slack(text: str, *, enable_unfurl: bool = False) -> requests.Response:
+def send_to_slack(
+    text: str,
+    *,
+    enable_unfurl: bool = False,
+    blocks: Optional[List[Dict[str, Any]]] = None,
+) -> requests.Response:
     if not SLACK_WEBHOOK_URL:
         raise RuntimeError("SLACK_WEBHOOK_URL is not set")
 
@@ -47,9 +61,85 @@ def send_to_slack(text: str, *, enable_unfurl: bool = False) -> requests.Respons
         "unfurl_links": enable_unfurl,
         "unfurl_media": enable_unfurl,
     }
+    if blocks:
+        payload["blocks"] = blocks
+
     resp = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
     resp.raise_for_status()
     return resp
+
+
+def _extract_meta(content: str, pattern: str) -> str:
+    """Return first capture from regex pattern (dotall)."""
+    m = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+    return (m.group(1).strip() if m else "").replace("\n", " ").strip()
+
+
+def fetch_preview(url: str) -> Dict[str, str]:
+    """
+    Fetch page and extract og:title / og:description / title.
+    Best-effort; returns empty strings on failure.
+    """
+    try:
+        resp = requests.get(url, headers=HTTP_HEADERS, timeout=10)
+        resp.raise_for_status()
+        resp.encoding = resp.apparent_encoding or resp.encoding or "utf-8"
+        html = resp.text
+    except Exception:
+        return {"title": "", "description": ""}
+
+    og_title = _extract_meta(
+        html, r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\'](.*?)["\']'
+    )
+    og_desc = _extract_meta(
+        html, r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\'](.*?)["\']'
+    )
+    og_image = _extract_meta(
+        html, r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\'](.*?)["\']'
+    )
+    title_tag = _extract_meta(html, r"<title[^>]*>(.*?)</title>")
+
+    title = og_title or title_tag
+    description = og_desc
+    return {"title": title, "description": description, "image": og_image}
+
+
+def _source_label(url: str) -> str:
+    if "note.com" in url:
+        return "note（ノート）"
+    if "prtimes.jp" in url:
+        return "PR TIMES"
+    return "update"
+
+
+def send_with_preview(url: str) -> requests.Response:
+    """Send a Slack message with manual preview via blocks."""
+    meta = fetch_preview(url)
+    title = meta.get("title") or url
+    description = meta.get("description") or ""
+    image = meta.get("image") or ""
+
+    if len(description) > 500:
+        description = description[:500] + "…"
+
+    label = _source_label(url)
+    quoted = f"> *<{url}|{title}>*\n> {description}".strip()
+
+    blocks: List[Dict[str, Any]] = [
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": f":bookmark_tabs: {label}"}]},
+        {"type": "section", "text": {"type": "mrkdwn", "text": quoted}},
+    ]
+
+    if image:
+        blocks.append(
+            {
+                "type": "image",
+                "image_url": image,
+                "alt_text": title or "preview",
+            }
+        )
+
+    return send_to_slack(url, enable_unfurl=True, blocks=blocks)
 
 
 def run_notification(window_hours: int = 1) -> dict:
@@ -70,9 +160,9 @@ def run_notification(window_hours: int = 1) -> dict:
 
     responses = []
     for url in pr_urls:
-        responses.append(send_to_slack(url, enable_unfurl=True))
+        responses.append(send_with_preview(url))
     for url in note_urls:
-        responses.append(send_to_slack(url, enable_unfurl=True))
+        responses.append(send_with_preview(url))
 
     if not pr_urls and not note_urls:
         responses.append(send_to_slack("今回はありません"))
