@@ -481,205 +481,257 @@
 /api/b_send_slack.py:
 --------------------------------------------------------------------------------
   1 | import os
-  2 | import sys
-  3 | from datetime import datetime, timedelta, timezone
-  4 | from pathlib import Path
-  5 | from typing import Any, Dict, List, Optional
-  6 | import re
-  7 | 
-  8 | import requests
+  2 | import json
+  3 | import sys
+  4 | from datetime import datetime, timedelta, timezone
+  5 | from pathlib import Path
+  6 | from typing import Any, Dict, List, Optional
+  7 | import re
+  8 | from http.server import BaseHTTPRequestHandler
   9 | 
- 10 | BASE_DIR = Path(__file__).resolve().parent.parent
- 11 | if str(BASE_DIR) not in sys.path:
- 12 |     sys.path.append(str(BASE_DIR))
- 13 | 
- 14 | import api.a2_check_note as note_checker
- 15 | import api.a1_check_releace as pr_checker
- 16 | from spreadsheet2json import load_spreadsheet_data
- 17 | 
- 18 | 
- 19 | def _load_env_file():
- 20 |     """
- 21 |     Minimal .env loader for local runs (KEY="value" lines only).
- 22 |     Safe to call in any environment.
- 23 |     """
- 24 |     env_path = Path(__file__).resolve().parent.parent / ".env"
- 25 |     if not env_path.exists():
- 26 |         return
- 27 | 
- 28 |     with env_path.open(encoding="utf-8") as f:
- 29 |         for line in f:
- 30 |             line = line.strip()
- 31 |             if not line or line.startswith("#") or "=" not in line:
- 32 |                 continue
- 33 |             key, val = line.split("=", 1)
- 34 |             val = val.strip().strip('"').strip("'")
- 35 |             os.environ.setdefault(key, val)
- 36 | 
- 37 | 
- 38 | _load_env_file()
+ 10 | import requests
+ 11 | 
+ 12 | BASE_DIR = Path(__file__).resolve().parent.parent
+ 13 | if str(BASE_DIR) not in sys.path:
+ 14 |     sys.path.append(str(BASE_DIR))
+ 15 | 
+ 16 | import api.a2_check_note as note_checker
+ 17 | import api.a1_check_releace as pr_checker
+ 18 | from spreadsheet2json import load_spreadsheet_data
+ 19 | 
+ 20 | 
+ 21 | def _load_env_file():
+ 22 |     """
+ 23 |     Minimal .env loader for local runs (KEY="value" lines only).
+ 24 |     Safe to call in any environment.
+ 25 |     """
+ 26 |     env_path = Path(__file__).resolve().parent.parent / ".env"
+ 27 |     if not env_path.exists():
+ 28 |         return
+ 29 | 
+ 30 |     with env_path.open(encoding="utf-8") as f:
+ 31 |         for line in f:
+ 32 |             line = line.strip()
+ 33 |             if not line or line.startswith("#") or "=" not in line:
+ 34 |                 continue
+ 35 |             key, val = line.split("=", 1)
+ 36 |             val = val.strip().strip('"').strip("'")
+ 37 |             os.environ.setdefault(key, val)
+ 38 | 
  39 | 
- 40 | SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
- 41 | HTTP_HEADERS = {
- 42 |     "User-Agent": (
- 43 |         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
- 44 |         "AppleWebKit/537.36 (KHTML, like Gecko) "
- 45 |         "Chrome/124.0.0.0 Safari/537.36"
- 46 |     )
- 47 | }
- 48 | 
- 49 | 
- 50 | def send_to_slack(
- 51 |     text: str,
- 52 |     *,
- 53 |     enable_unfurl: bool = True,
- 54 |     blocks: Optional[List[Dict[str, Any]]] = None,
- 55 | ) -> requests.Response:
- 56 |     if not SLACK_WEBHOOK_URL:
- 57 |         raise RuntimeError("SLACK_WEBHOOK_URL is not set")
- 58 | 
- 59 |     payload = {
- 60 |         "text": text,
- 61 |         "unfurl_links": enable_unfurl,
- 62 |         "unfurl_media": enable_unfurl,
- 63 |     }
- 64 |     if blocks:
- 65 |         payload["blocks"] = blocks
- 66 | 
- 67 |     resp = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
- 68 |     resp.raise_for_status()
- 69 |     return resp
- 70 | 
- 71 | 
- 72 | def _extract_meta(content: str, pattern: str) -> str:
- 73 |     """Return first capture from regex pattern (dotall)."""
- 74 |     m = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
- 75 |     return (m.group(1).strip() if m else "").replace("\n", " ").strip()
- 76 | 
- 77 | 
- 78 | def fetch_preview(url: str) -> Dict[str, str]:
- 79 |     """
- 80 |     Fetch page and extract og:title / og:description / title.
- 81 |     Best-effort; returns empty strings on failure.
- 82 |     """
- 83 |     try:
- 84 |         resp = requests.get(url, headers=HTTP_HEADERS, timeout=10)
- 85 |         resp.raise_for_status()
- 86 |         resp.encoding = resp.apparent_encoding or resp.encoding or "utf-8"
- 87 |         html = resp.text
- 88 |     except Exception:
- 89 |         return {"title": "", "description": ""}
- 90 | 
- 91 |     og_title = _extract_meta(
- 92 |         html, r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\'](.*?)["\']'
- 93 |     )
- 94 |     og_desc = _extract_meta(
- 95 |         html, r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\'](.*?)["\']'
- 96 |     )
- 97 |     og_image = _extract_meta(
- 98 |         html, r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\'](.*?)["\']'
- 99 |     )
-100 |     title_tag = _extract_meta(html, r"<title[^>]*>(.*?)</title>")
-101 | 
-102 |     title = og_title or title_tag
-103 |     description = og_desc
-104 |     return {"title": title, "description": description, "image": og_image}
-105 | 
-106 | 
-107 | def _source_label(url: str) -> str:
-108 |     if "note.com" in url:
-109 |         return "note（ノート）"
-110 |     if "prtimes.jp" in url:
-111 |         return "PR TIMES"
-112 |     return "update"
-113 | 
-114 | 
-115 | def _source_icon(url: str) -> str:
-116 |     if "note.com" in url:
-117 |         return "https://play-lh.googleusercontent.com/Jcdw4nXOdeg3pMPJldirClrj__oBd-UVZPehnb9Zn5MtWvWCQivgLqJ1mux0JjyxvA"
-118 |     if "prtimes.jp" in url:
-119 |         return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTj6jiPk40UN8Vih6Vtaqv0DiIIF3ZUXWms1g&s"
-120 |     return ""
-121 | 
-122 | 
-123 | def send_with_preview(url: str) -> requests.Response:
-124 |     """Send a Slack message with manual preview via blocks."""
-125 |     meta = fetch_preview(url)
-126 |     title = meta.get("title") or url
-127 |     description = meta.get("description") or ""
-128 |     image = meta.get("image") or ""
-129 | 
-130 |     if len(description) > 500:
-131 |         description = description[:500] + "…"
-132 | 
-133 |     label = _source_label(url)
-134 |     quoted_lines = []
-135 |     quoted_lines.append(f"> {label}")
-136 |     quoted_lines.append(f"> {url}")
-137 |     quoted_lines.append(f"> *{title}*")
-138 |     if description:
-139 |         quoted_lines.append(f"> {description}")
-140 | 
-141 |     accessory = (
-142 |         {"type": "image", "image_url": image, "alt_text": title or "preview"} if image else None
-143 |     )
-144 | 
-145 |     blocks: List[Dict[str, Any]] = [
-146 |         {
-147 |             "type": "section",
-148 |             "text": {"type": "mrkdwn", "text": "\n".join(quoted_lines)},
-149 |             **({"accessory": accessory} if accessory else {}),
-150 |         }
-151 |     ]
-152 | 
-153 |     fallback_text = f"{label}: {title}"
-154 |     return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
-155 | 
-156 | 
-157 | def run_notification(window_hours: int = 1) -> dict:
-158 |     """
-159 |     Execute release/note checks and post results to Slack.
-160 |     Returns a summary dict for logging/HTTP responses.
-161 |     """
-162 |     load_spreadsheet_data(force_refresh=True)
-163 | 
-164 |     pr_data = pr_checker.check_releases(window_hours=window_hours)
-165 |     pr_checker.write_output(pr_data)
-166 | 
-167 |     note_data = note_checker.check_notes(window_hours=window_hours)
-168 |     note_checker.write_output(note_data)
-169 | 
-170 |     pr_urls = [r.get("url", "") for r in pr_data.get("releases", []) if r.get("url")]
-171 |     note_urls = [a.get("url", "") for a in note_data.get("articles", []) if a.get("url")]
-172 | 
-173 |     responses = []
-174 |     for url in pr_urls:
-175 |         responses.append(send_with_preview(url))
-176 |     for url in note_urls:
+ 40 | _load_env_file()
+ 41 | 
+ 42 | SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
+ 43 | HTTP_HEADERS = {
+ 44 |     "User-Agent": (
+ 45 |         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+ 46 |         "AppleWebKit/537.36 (KHTML, like Gecko) "
+ 47 |         "Chrome/124.0.0.0 Safari/537.36"
+ 48 |     )
+ 49 | }
+ 50 | 
+ 51 | 
+ 52 | def send_to_slack(
+ 53 |     text: str,
+ 54 |     *,
+ 55 |     enable_unfurl: bool = True,
+ 56 |     blocks: Optional[List[Dict[str, Any]]] = None,
+ 57 | ) -> requests.Response:
+ 58 |     if not SLACK_WEBHOOK_URL:
+ 59 |         raise RuntimeError("SLACK_WEBHOOK_URL is not set")
+ 60 | 
+ 61 |     payload = {
+ 62 |         "text": text,
+ 63 |         "unfurl_links": enable_unfurl,
+ 64 |         "unfurl_media": enable_unfurl,
+ 65 |     }
+ 66 |     if blocks:
+ 67 |         payload["blocks"] = blocks
+ 68 | 
+ 69 |     resp = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
+ 70 |     resp.raise_for_status()
+ 71 |     return resp
+ 72 | 
+ 73 | 
+ 74 | def _extract_meta(content: str, pattern: str) -> str:
+ 75 |     """Return first capture from regex pattern (dotall)."""
+ 76 |     m = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+ 77 |     return (m.group(1).strip() if m else "").replace("\n", " ").strip()
+ 78 | 
+ 79 | 
+ 80 | def fetch_preview(url: str) -> Dict[str, str]:
+ 81 |     """
+ 82 |     Fetch page and extract og:title / og:description / title.
+ 83 |     Best-effort; returns empty strings on failure.
+ 84 |     """
+ 85 |     try:
+ 86 |         resp = requests.get(url, headers=HTTP_HEADERS, timeout=10)
+ 87 |         resp.raise_for_status()
+ 88 |         resp.encoding = resp.apparent_encoding or resp.encoding or "utf-8"
+ 89 |         html = resp.text
+ 90 |     except Exception:
+ 91 |         return {"title": "", "description": ""}
+ 92 | 
+ 93 |     og_title = _extract_meta(
+ 94 |         html, r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\'](.*?)["\']'
+ 95 |     )
+ 96 |     og_desc = _extract_meta(
+ 97 |         html, r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\'](.*?)["\']'
+ 98 |     )
+ 99 |     og_image = _extract_meta(
+100 |         html, r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\'](.*?)["\']'
+101 |     )
+102 |     title_tag = _extract_meta(html, r"<title[^>]*>(.*?)</title>")
+103 | 
+104 |     title = og_title or title_tag
+105 |     description = og_desc
+106 |     return {"title": title, "description": description, "image": og_image}
+107 | 
+108 | 
+109 | def _source_label(url: str) -> str:
+110 |     if "note.com" in url:
+111 |         return "note（ノート）"
+112 |     if "prtimes.jp" in url:
+113 |         return "PR TIMES"
+114 |     return "update"
+115 | 
+116 | 
+117 | def _source_icon(url: str) -> str:
+118 |     if "note.com" in url:
+119 |         return "https://play-lh.googleusercontent.com/Jcdw4nXOdeg3pMPJldirClrj__oBd-UVZPehnb9Zn5MtWvWCQivgLqJ1mux0JjyxvA"
+120 |     if "prtimes.jp" in url:
+121 |         return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTj6jiPk40UN8Vih6Vtaqv0DiIIF3ZUXWms1g&s"
+122 |     return ""
+123 | 
+124 | 
+125 | def send_with_preview(url: str) -> requests.Response:
+126 |     """Send a Slack message with manual preview via blocks."""
+127 |     meta = fetch_preview(url)
+128 |     title = meta.get("title") or url
+129 |     description = meta.get("description") or ""
+130 |     image = meta.get("image") or ""
+131 | 
+132 |     if len(description) > 500:
+133 |         description = description[:500] + "…"
+134 | 
+135 |     label = _source_label(url)
+136 |     quoted_lines = []
+137 |     quoted_lines.append(f"> {label}")
+138 |     quoted_lines.append(f"> {url}")
+139 |     quoted_lines.append(f"> *{title}*")
+140 |     if description:
+141 |         quoted_lines.append(f"> {description}")
+142 | 
+143 |     accessory = (
+144 |         {"type": "image", "image_url": image, "alt_text": title or "preview"} if image else None
+145 |     )
+146 | 
+147 |     blocks: List[Dict[str, Any]] = [
+148 |         {
+149 |             "type": "section",
+150 |             "text": {"type": "mrkdwn", "text": "\n".join(quoted_lines)},
+151 |             **({"accessory": accessory} if accessory else {}),
+152 |         }
+153 |     ]
+154 | 
+155 |     fallback_text = f"{label}: {title}"
+156 |     return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
+157 | 
+158 | 
+159 | def run_notification(window_hours: int = 1) -> dict:
+160 |     """
+161 |     Execute release/note checks and post results to Slack.
+162 |     Returns a summary dict for logging/HTTP responses.
+163 |     """
+164 |     load_spreadsheet_data(force_refresh=True)
+165 | 
+166 |     pr_data = pr_checker.check_releases(window_hours=window_hours)
+167 |     pr_checker.write_output(pr_data)
+168 | 
+169 |     note_data = note_checker.check_notes(window_hours=window_hours)
+170 |     note_checker.write_output(note_data)
+171 | 
+172 |     pr_urls = [r.get("url", "") for r in pr_data.get("releases", []) if r.get("url")]
+173 |     note_urls = [a.get("url", "") for a in note_data.get("articles", []) if a.get("url")]
+174 | 
+175 |     responses = []
+176 |     for url in pr_urls:
 177 |         responses.append(send_with_preview(url))
-178 | 
-179 |     if not pr_urls and not note_urls:
-180 |         responses.append(send_to_slack("今回はありません"))
-181 | 
-182 |     summary = {
-183 |         "pr_count": len(pr_urls),
-184 |         "note_count": len(note_urls),
-185 |         "messages_sent": len(responses),
-186 |     }
-187 |     return summary
-188 | 
-189 | 
-190 | def main():
-191 |     summary = run_notification(window_hours=1)
-192 |     print(
-193 |         f"Slack posted: pr_count={summary['pr_count']}, "
-194 |         f"note_count={summary['note_count']}, "
-195 |         f"messages_sent={summary['messages_sent']}"
-196 |     )
-197 | 
-198 | 
-199 | if __name__ == "__main__":
-200 |     main()
+178 |     for url in note_urls:
+179 |         responses.append(send_with_preview(url))
+180 | 
+181 |     if not pr_urls and not note_urls:
+182 |         responses.append(send_to_slack("今回はありません"))
+183 | 
+184 |     summary = {
+185 |         "pr_count": len(pr_urls),
+186 |         "note_count": len(note_urls),
+187 |         "messages_sent": len(responses),
+188 |     }
+189 |     return summary
+190 | 
+191 | 
+192 | def main():
+193 |     summary = run_notification(window_hours=1)
+194 |     print(
+195 |         f"Slack posted: pr_count={summary['pr_count']}, "
+196 |         f"note_count={summary['note_count']}, "
+197 |         f"messages_sent={summary['messages_sent']}"
+198 |     )
+199 | 
+200 | 
+201 | def handler(request) -> Dict[str, Any]:
+202 |     """
+203 |     Vercel Python entrypoint to trigger the notification run via HTTP.
+204 |     """
+205 |     try:
+206 |         summary = run_notification(window_hours=1)
+207 |         body = {"ok": True, **summary}
+208 |         status_code = 200
+209 |     except requests.HTTPError as exc:
+210 |         body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
+211 |         status_code = 502
+212 |     except Exception as exc:
+213 |         body = {"ok": False, "error": str(exc)}
+214 |         status_code = 500
+215 | 
+216 |     return {
+217 |         "statusCode": status_code,
+218 |         "headers": {"Content-Type": "application/json"},
+219 |         "body": json.dumps(body, ensure_ascii=False),
+220 |     }
+221 | 
+222 | 
+223 | class Handler(BaseHTTPRequestHandler):
+224 |     """
+225 |     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
+226 |     Delegates to the function-based handler above.
+227 |     """
+228 | 
+229 |     def _dispatch(self):
+230 |         result = handler({})
+231 |         status = result.get("statusCode", 200)
+232 |         headers = result.get("headers", {}) or {}
+233 |         body = result.get("body", "")
+234 |         if not isinstance(body, (str, bytes)):
+235 |             body = json.dumps(body, ensure_ascii=False)
+236 | 
+237 |         self.send_response(status)
+238 |         for k, v in headers.items():
+239 |             self.send_header(k, v)
+240 |         self.end_headers()
+241 |         payload = body if isinstance(body, bytes) else body.encode("utf-8")
+242 |         self.wfile.write(payload)
+243 | 
+244 |     def do_GET(self):
+245 |         self._dispatch()
+246 | 
+247 |     def do_POST(self):
+248 |         self._dispatch()
+249 | 
+250 | 
+251 | if __name__ == "__main__":
+252 |     main()
 --------------------------------------------------------------------------------
 
 /api/prtimes_notify.py:

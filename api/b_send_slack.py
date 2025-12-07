@@ -198,10 +198,8 @@ def main():
     )
 
 
-def handler(request) -> Dict[str, Any]:
-    """
-    Vercel Python entrypoint to trigger the notification run via HTTP.
-    """
+def build_response() -> Dict[str, Any]:
+    """Shared HTTP response builder for serverless/handler entrypoints."""
     try:
         summary = run_notification(window_hours=1)
         body = {"ok": True, **summary}
@@ -223,11 +221,11 @@ def handler(request) -> Dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     """
     Fallback handler for environments that expect BaseHTTPRequestHandler subclass.
-    Delegates to the function-based handler above.
+    Delegates to build_response above.
     """
 
     def _dispatch(self):
-        result = handler({})
+        result = build_response()
         status = result.get("statusCode", 200)
         headers = result.get("headers", {}) or {}
         body = result.get("body", "")
@@ -246,6 +244,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self._dispatch()
+
+
+# Alias expected by older Vercel Python runtimes: treat `handler` as a Handler subclass.
+handler = Handler
 
 
 if __name__ == "__main__":
