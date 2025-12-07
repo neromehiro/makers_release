@@ -15,7 +15,8 @@ if str(BASE_DIR) not in sys.path:
 from spreadsheet2json import load_spreadsheet_data
 
 SITEMAP_URL = "https://prtimes.jp/sitemap-news.xml"
-OUTPUT_PATH = Path(__file__).resolve().parent / "a1_check_releace.json"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
+OUTPUT_PATH = OUTPUT_DIR / "a1_check_releace.json"
 
 
 def load_prtimes_ids() -> List[str]:
@@ -135,6 +136,7 @@ def check_releases(window_hours: int = 1) -> Dict[str, Any]:
 
 
 def write_output(data: Dict[str, Any]) -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

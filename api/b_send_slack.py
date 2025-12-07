@@ -131,12 +131,8 @@ def send_with_preview(url: str) -> requests.Response:
         description = description[:500] + "…"
 
     label = _source_label(url)
-    icon = _source_icon(url)
     quoted_lines = []
-    if icon:
-        quoted_lines.append(f"> <{icon}|{label}> {label}")
-    else:
-        quoted_lines.append(f"> {label}")
+    quoted_lines.append(f"> {label}")
     quoted_lines.append(f"> {url}")
     quoted_lines.append(f"> *{title}*")
     if description:
@@ -154,7 +150,8 @@ def send_with_preview(url: str) -> requests.Response:
         }
     ]
 
-    return send_to_slack(url, enable_unfurl=True, blocks=blocks)
+    fallback_text = f"{label}: {title}"
+    return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
 
 
 def run_notification(window_hours: int = 1) -> dict:

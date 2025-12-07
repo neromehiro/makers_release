@@ -14,7 +14,8 @@ if str(BASE_DIR) not in sys.path:
 
 from spreadsheet2json import load_spreadsheet_data
 
-OUTPUT_PATH = Path(__file__).resolve().parent / "a3_check_x.json"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
+OUTPUT_PATH = OUTPUT_DIR / "a3_check_x.json"
 FEED_URL_TEMPLATE = "https://nitter.net/{x_id}/rss"
 HTTP_HEADERS = {
     "User-Agent": (
@@ -133,6 +134,7 @@ def check_x(window_hours: int = 1) -> Dict[str, Any]:
 
 
 def write_output(data: Dict[str, Any]) -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
