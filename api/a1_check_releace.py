@@ -1,31 +1,33 @@
 import json
 import re
+import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
 import requests
- 
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
+
+from spreadsheet2json import load_spreadsheet_data
 
 SITEMAP_URL = "https://prtimes.jp/sitemap-news.xml"
-BASE_DIR = Path(__file__).resolve().parent.parent
-ID_LIST_PATH = BASE_DIR / "id_list.txt"
 OUTPUT_PATH = Path(__file__).resolve().parent / "a1_check_releace.json"
 
 
 def load_prtimes_ids() -> List[str]:
-    """Load company_id list from id_list.txt (ignores comments/blank lines)."""
-    if not ID_LIST_PATH.exists():
-        return []
-
+    """Load company_id list from spreadsheet2json output."""
+    data = load_spreadsheet_data()
+    raw_ids = data.get("prtimes_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
-    with ID_LIST_PATH.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            ids.append(line.lstrip("0") or "0")
+    for cid in raw_ids:
+        cid_str = str(cid).strip()
+        if not cid_str:
+            continue
+        ids.append(cid_str.lstrip("0") or "0")
     return ids
 
 

@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Dict, List
-from urllib.parse import urlparse
 
 import requests
 
@@ -15,8 +14,8 @@ if str(BASE_DIR) not in sys.path:
 
 from spreadsheet2json import load_spreadsheet_data
 
-OUTPUT_PATH = Path(__file__).resolve().parent / "a2_check_note.py.json"
-FEED_URL_TEMPLATE = "https://note.com/{note_id}/rss"
+OUTPUT_PATH = Path(__file__).resolve().parent / "a3_check_x.json"
+FEED_URL_TEMPLATE = "https://nitter.net/{x_id}/rss"
 HTTP_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -26,44 +25,28 @@ HTTP_HEADERS = {
 }
 
 
-def _normalize_note_id(value: str) -> str:
-    """Extract note username/slug from URL or raw value."""
-    raw = value.strip()
-    if not raw:
-        return ""
-
-    if "note.com" in raw or "://" in raw:
-        parsed = urlparse(raw if "://" in raw else f"https://{raw}")
-        path = parsed.path.strip("/")
-        if not path:
-            return ""
-        raw = path.split("/")[0]
-
-    return raw.lstrip("@")
-
-
-def load_note_ids() -> List[str]:
-    """Load note user IDs from spreadsheet2json output."""
+def load_x_ids() -> List[str]:
+    """Load X(Twitter) user IDs from spreadsheet2json output."""
     data = load_spreadsheet_data()
-    raw_ids = data.get("note_id", []) if isinstance(data, dict) else []
+    raw_ids = data.get("x_id", []) if isinstance(data, dict) else []
     ids: List[str] = []
-    for note_id in raw_ids:
-        normalized = _normalize_note_id(str(note_id))
-        if normalized:
-            ids.append(normalized)
+    for x_id in raw_ids:
+        x_str = str(x_id).strip()
+        if x_str:
+            ids.append(x_str)
     return ids
 
 
-def fetch_rss(note_id: str) -> bytes:
-    """Fetch RSS feed bytes for a given note user."""
-    url = FEED_URL_TEMPLATE.format(note_id=note_id)
+def fetch_rss(x_id: str) -> bytes:
+    """Fetch RSS feed bytes for a given X user via Nitter."""
+    url = FEED_URL_TEMPLATE.format(x_id=x_id)
     resp = requests.get(url, headers=HTTP_HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.content
 
 
-def parse_rss(xml_bytes: bytes, note_id: str) -> List[Dict[str, Any]]:
-    """Parse RSS XML and return articles for the specified note_id."""
+def parse_rss(xml_bytes: bytes, x_id: str) -> List[Dict[str, Any]]:
+    """Parse RSS XML and return tweets for the specified x_id."""
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError:
@@ -73,7 +56,7 @@ def parse_rss(xml_bytes: bytes, note_id: str) -> List[Dict[str, Any]]:
     if channel is None:
         return []
 
-    items: List[Dict[str, Any]] = []
+    tweets: List[Dict[str, Any]] = []
     for item in channel.findall("item"):
         title = (item.findtext("title") or "").strip()
         link = (item.findtext("link") or "").strip()
@@ -89,34 +72,34 @@ def parse_rss(xml_bytes: bytes, note_id: str) -> List[Dict[str, Any]]:
         if pub_dt.tzinfo is None:
             pub_dt = pub_dt.replace(tzinfo=timezone.utc)
 
-        items.append(
+        tweets.append(
             {
-                "note_id": note_id,
+                "x_id": x_id,
                 "url": link,
                 "title": title,
                 "published_at": pub_dt,
             }
         )
-    return items
+    return tweets
 
 
-def filter_recent(articles: List[Dict[str, Any]], window_hours: int = 1) -> List[Dict[str, Any]]:
-    """Return articles published within the last window_hours."""
+def filter_recent(tweets: List[Dict[str, Any]], window_hours: int = 1) -> List[Dict[str, Any]]:
+    """Return tweets published within the last window_hours."""
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(hours=window_hours)
 
     filtered: List[Dict[str, Any]] = []
-    for article in articles:
-        pub_dt: datetime = article["published_at"]
+    for tweet in tweets:
+        pub_dt: datetime = tweet["published_at"]
         pub_dt_utc = pub_dt.astimezone(timezone.utc)
         if pub_dt_utc < window_start:
             continue
 
         filtered.append(
             {
-                "note_id": article["note_id"],
-                "url": article["url"],
-                "title": article["title"],
+                "x_id": tweet["x_id"],
+                "url": tweet["url"],
+                "title": tweet["title"],
                 "published_at": pub_dt_utc.isoformat(),
             }
         )
@@ -125,26 +108,26 @@ def filter_recent(articles: List[Dict[str, Any]], window_hours: int = 1) -> List
     return filtered
 
 
-def check_notes(window_hours: int = 1) -> Dict[str, Any]:
-    """High-level entry: fetch RSS feeds, filter recent, and return structured data."""
-    note_ids = load_note_ids()
-    all_articles: List[Dict[str, Any]] = []
+def check_x(window_hours: int = 1) -> Dict[str, Any]:
+    """High-level entry: fetch Nitter feeds, filter recent, and return structured data."""
+    x_ids = load_x_ids()
+    all_tweets: List[Dict[str, Any]] = []
 
-    for note_id in note_ids:
+    for x_id in x_ids:
         try:
-            xml_bytes = fetch_rss(note_id)
-            all_articles.extend(parse_rss(xml_bytes, note_id))
+            xml_bytes = fetch_rss(x_id)
+            all_tweets.extend(parse_rss(xml_bytes, x_id))
         except Exception:
             continue
 
-    recent = filter_recent(all_articles, window_hours=window_hours)
+    recent = filter_recent(all_tweets, window_hours=window_hours)
     now = datetime.now(timezone.utc)
     payload: Dict[str, Any] = {
         "checked_at": now.isoformat(),
         "window_hours": window_hours,
-        "target_ids": note_ids,
+        "target_ids": x_ids,
         "count": len(recent),
-        "articles": recent,
+        "tweets": recent,
     }
     return payload
 
@@ -154,9 +137,9 @@ def write_output(data: Dict[str, Any]) -> None:
 
 
 def main():
-    data = check_notes(window_hours=1)
+    data = check_x(window_hours=1)
     write_output(data)
-    print(f"Saved {data['count']} articles to {OUTPUT_PATH}")
+    print(f"Saved {data['count']} tweets to {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

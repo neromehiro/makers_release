@@ -1,16 +1,36 @@
 {
-  "checked_at": "2025-12-07T04:40:16.642735+00:00",
+  "checked_at": "2025-12-07T05:39:33.411726+00:00",
   "window_hours": 1,
   "target_ids": [
-    "satochan_1973"
+    "bright_azalea589",
+    "devesion",
+    "intern_com",
+    "reoleo29",
+    "withpmai",
+    "finn_inc",
+    "readytobloomkoto",
+    "chocoramu",
+    "piobeer"
   ],
-  "count": 1,
+  "count": 3,
   "articles": [
     {
-      "note_id": "satochan_1973",
-      "url": "https://note.com/satochan_1973/n/ne63e8ed672b3",
-      "title": "25年のスルメイカ漁獲枠を3割拡大　　今更ながら、この漁獲枠増加がスルメイカ資源に与える影響を考察してみた",
-      "published_at": "2025-12-07T04:33:08+00:00"
+      "note_id": "chocoramu",
+      "url": "https://note.com/chocoramu/n/n91fe4ec542bd",
+      "title": "イギリス ミュージックビデオ チャート総合8位！　新曲 4日連続1位の快挙！",
+      "published_at": "2025-12-07T05:25:38+00:00"
+    },
+    {
+      "note_id": "chocoramu",
+      "url": "https://note.com/chocoramu/n/n6fb9c5fdb5fd",
+      "title": "【更新速報】イギリスで前例のない現象が起きている",
+      "published_at": "2025-12-07T05:01:54+00:00"
+    },
+    {
+      "note_id": "chocoramu",
+      "url": "https://note.com/chocoramu/n/nae5524c8b883",
+      "title": "【速報】激戦区・イギリス「ダンスミュージック部門」堂々の1位",
+      "published_at": "2025-12-07T04:52:28+00:00"
     }
   ]
 }
