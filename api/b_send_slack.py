@@ -1,4 +1,5 @@
 import os
+import json
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -194,6 +195,28 @@ def main():
         f"note_count={summary['note_count']}, "
         f"messages_sent={summary['messages_sent']}"
     )
+
+
+def handler(request) -> Dict[str, Any]:
+    """
+    Vercel Python entrypoint to trigger the notification run via HTTP.
+    """
+    try:
+        summary = run_notification(window_hours=1)
+        body = {"ok": True, **summary}
+        status_code = 200
+    except requests.HTTPError as exc:
+        body = {"ok": False, "error": f"Slack HTTP error: {exc}"}
+        status_code = 502
+    except Exception as exc:
+        body = {"ok": False, "error": str(exc)}
+        status_code = 500
+
+    return {
+        "statusCode": status_code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body, ensure_ascii=False),
+    }
 
 
 if __name__ == "__main__":

@@ -4,5 +4,11 @@
       "path": "/api/prtimes_notify",
       "schedule": "10 7 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/b_send_slack",
+      "destination": "/api/b_send_slack"
+    }
   ]
 }
