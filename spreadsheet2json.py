@@ -96,7 +96,12 @@ def parse_ids(csv_text: str) -> dict:
 
 
 def write_json(data: dict) -> None:
-    OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=True, indent=2), encoding="utf-8")
+    text = json.dumps(data, ensure_ascii=True, indent=2)
+    try:
+        OUTPUT_PATH.write_text(text, encoding="utf-8")
+    except OSError:
+        # Skip persisting when filesystem is read-only (e.g., serverless)
+        pass
 
 
 def load_spreadsheet_data(
