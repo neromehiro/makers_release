@@ -18,6 +18,33 @@ import api.a1_check_releace as pr_checker
 from spreadsheet2json import load_spreadsheet_data
 
 
+def _build_name_index(sheet: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """Create lookup tables to resolve names by prtimes_id / note_id / x_id."""
+    by_name = sheet.get("by_name") if isinstance(sheet, dict) else {}
+    pr_by_id: Dict[str, str] = {}
+    note_by_id: Dict[str, str] = {}
+    x_by_id: Dict[str, str] = {}
+    if not isinstance(by_name, dict):
+        return {"pr": pr_by_id, "note": note_by_id, "x": x_by_id}
+
+    for name, ids in by_name.items():
+        if not isinstance(ids, dict):
+            continue
+        pr_id = str(ids.get("prtimes_id", "")).strip()
+        if pr_id:
+            pr_by_id[pr_id.lstrip("0") or "0"] = name
+
+        note_id = str(ids.get("note_id", "")).strip()
+        if note_id:
+            note_by_id[note_id] = name
+
+        x_id = str(ids.get("x_id", "")).strip()
+        if x_id:
+            x_by_id[x_id] = name
+
+    return {"pr": pr_by_id, "note": note_by_id, "x": x_by_id}
+
+
 def _load_env_file():
     """
     Minimal .env loader for local runs (KEY="value" lines only).
@@ -122,7 +149,7 @@ def _source_icon(url: str) -> str:
     return ""
 
 
-def send_with_preview(url: str) -> requests.Response:
+def send_with_preview(url: str, *, name: str | None = None) -> requests.Response:
     """Send a Slack message with manual preview via blocks."""
     meta = fetch_preview(url)
     title = meta.get("title") or url
@@ -134,7 +161,8 @@ def send_with_preview(url: str) -> requests.Response:
 
     label = _source_label(url)
     quoted_lines = []
-    quoted_lines.append(f"> {label}")
+    label_text = f"{label} - {name}" if name else label
+    quoted_lines.append(f"> {label_text}")
     quoted_lines.append(f"> {url}")
     quoted_lines.append(f"> *{title}*")
     if description:
@@ -152,7 +180,7 @@ def send_with_preview(url: str) -> requests.Response:
         }
     ]
 
-    fallback_text = f"{label}: {title}"
+    fallback_text = f"{name} | {label}: {title}" if name else f"{label}: {title}"
     return send_to_slack(fallback_text, enable_unfurl=False, blocks=blocks)
 
 
@@ -161,7 +189,8 @@ def run_notification(window_hours: int = 1, *, persist_cache: bool = True) -> di
     Execute release/note checks and post results to Slack.
     Returns a summary dict for logging/HTTP responses.
     """
-    load_spreadsheet_data(force_refresh=True, persist=persist_cache)
+    sheet_data = load_spreadsheet_data(force_refresh=True, persist=persist_cache)
+    name_index = _build_name_index(sheet_data)
 
     pr_data = pr_checker.check_releases(window_hours=window_hours)
     pr_checker.write_output(pr_data)
@@ -169,21 +198,28 @@ def run_notification(window_hours: int = 1, *, persist_cache: bool = True) -> di
     note_data = note_checker.check_notes(window_hours=window_hours)
     note_checker.write_output(note_data)
 
-    pr_urls = [r.get("url", "") for r in pr_data.get("releases", []) if r.get("url")]
-    note_urls = [a.get("url", "") for a in note_data.get("articles", []) if a.get("url")]
+    pr_entries = [
+        (r.get("url", ""), name_index["pr"].get(r.get("company_id", "")))
+        for r in pr_data.get("releases", [])
+        if r.get("url")
+    ]
+    note_entries = [
+        (a.get("url", ""), name_index["note"].get(a.get("note_id", "")))
+        for a in note_data.get("articles", [])
+        if a.get("url")
+    ]
 
     responses = []
-    for url in pr_urls:
-        responses.append(send_with_preview(url))
-    for url in note_urls:
-        responses.append(send_with_preview(url))
+    for url, name in pr_entries:
+        responses.append(send_with_preview(url, name=name))
+    for url, name in note_entries:
+        responses.append(send_with_preview(url, name=name))
 
-    if not pr_urls and not note_urls:
-        responses.append(send_to_slack("今回はありません"))
+    # When nothing new, don't post anything.
 
     summary = {
-        "pr_count": len(pr_urls),
-        "note_count": len(note_urls),
+        "pr_count": len(pr_entries),
+        "note_count": len(note_entries),
         "messages_sent": len(responses),
         "pr_ids": pr_data.get("target_ids", []),
         "note_ids": note_data.get("target_ids", []),

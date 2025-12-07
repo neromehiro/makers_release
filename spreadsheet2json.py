@@ -3,6 +3,7 @@ Fetches public Google Sheet data and writes prtimes_id / note_id lists to JSON.
 
 The target sheet is shared read-only, so we can download it as CSV via the
 `export?format=csv` endpoint. IDs marked as 'なし' or left blank are skipped.
+氏名列も含めて取得し、氏名ごとのID情報もJSONに含める。
 """
 
 from __future__ import annotations
@@ -72,31 +73,42 @@ def parse_ids(csv_text: str) -> dict:
     prtimes_ids = []
     note_ids = []
     x_ids = []
+    people = {}
 
     reader = csv.DictReader(csv_text.splitlines())
     for row in reader:
+        name = (row.get("氏名") or "").strip()
         prtimes_value = (row.get("prtimes_id") or "").strip()
         note_value = (row.get("note_id") or "").strip()
         x_value = (row.get("x_id") or "").strip()
 
+        person_entry = {}
+
         if not _is_missing(prtimes_value):
             prtimes_ids.append(prtimes_value)
+            person_entry["prtimes_id"] = prtimes_value
         if not _is_missing(note_value):
             normalized = _normalize_note_id(note_value)
             if normalized:
                 note_ids.append(normalized)
+                person_entry["note_id"] = normalized
         if not _is_missing(x_value):
             x_ids.append(x_value)
+            person_entry["x_id"] = x_value
+
+        if name:
+            people[name] = person_entry
 
     return {
         "prtimes_id": _dedupe_preserve_order(prtimes_ids),
         "note_id": _dedupe_preserve_order(note_ids),
         "x_id": _dedupe_preserve_order(x_ids),
+        "by_name": people,
     }
 
 
 def write_json(data: dict) -> None:
-    text = json.dumps(data, ensure_ascii=True, indent=2)
+    text = json.dumps(data, ensure_ascii=False, indent=2)
     try:
         OUTPUT_PATH.write_text(text, encoding="utf-8")
     except OSError:
