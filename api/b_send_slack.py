@@ -123,21 +123,21 @@ def send_with_preview(url: str) -> requests.Response:
         description = description[:500] + "…"
 
     label = _source_label(url)
-    quoted = f"> *<{url}|{title}>*\n> {description}".strip()
+    quoted = f"> :bookmark_tabs: {label}\n> *<{url}|{title}>*\n> {description}".strip()
 
-    blocks: List[Dict[str, Any]] = [
-        {"type": "context", "elements": [{"type": "mrkdwn", "text": f":bookmark_tabs: {label}"}]},
-        {"type": "section", "text": {"type": "mrkdwn", "text": quoted}},
-    ]
-
+    section: Dict[str, Any] = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": quoted},
+    }
+    # Use accessory to keep the image thumbnail-sized and inside the quoted block.
     if image:
-        blocks.append(
-            {
-                "type": "image",
-                "image_url": image,
-                "alt_text": title or "preview",
-            }
-        )
+        section["accessory"] = {
+            "type": "image",
+            "image_url": image,
+            "alt_text": title or "preview",
+        }
+
+    blocks: List[Dict[str, Any]] = [section]
 
     return send_to_slack(url, enable_unfurl=True, blocks=blocks)
 

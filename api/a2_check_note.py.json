@@ -1,5 +1,5 @@
 {
-  "checked_at": "2025-12-07T05:47:57.281866+00:00",
+  "checked_at": "2025-12-07T05:54:59.834892+00:00",
   "window_hours": 1,
   "target_ids": [
     "bright_azalea589",
@@ -12,7 +12,7 @@
     "chocoramu",
     "piobeer"
   ],
-  "count": 3,
+  "count": 2,
   "articles": [
     {
       "note_id": "chocoramu",
@@ -25,12 +25,6 @@
       "url": "https://note.com/chocoramu/n/n6fb9c5fdb5fd",
       "title": "【更新速報】イギリスで前例のない現象が起きている",
       "published_at": "2025-12-07T05:01:54+00:00"
-    },
-    {
-      "note_id": "chocoramu",
-      "url": "https://note.com/chocoramu/n/nae5524c8b883",
-      "title": "【速報】激戦区・イギリス「ダンスミュージック部門」堂々の1位",
-      "published_at": "2025-12-07T04:52:28+00:00"
     }
   ]
 }
