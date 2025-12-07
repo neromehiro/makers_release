@@ -28,7 +28,7 @@
  21 | 
  22 | def load_prtimes_ids() -> List[str]:
  23 |     """Load company_id list from spreadsheet2json output."""
- 24 |     data = load_spreadsheet_data()
+ 24 |     data = load_spreadsheet_data(persist=False)
  25 |     raw_ids = data.get("prtimes_id", []) if isinstance(data, dict) else []
  26 |     ids: List[str] = []
  27 |     for cid in raw_ids:
@@ -143,18 +143,22 @@
 136 | 
 137 | 
 138 | def write_output(data: Dict[str, Any]) -> None:
-139 |     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-140 |     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-141 | 
-142 | 
-143 | def main():
-144 |     data = check_releases(window_hours=1)
-145 |     write_output(data)
-146 |     print(f"Saved {data['count']} releases to {OUTPUT_PATH}")
-147 | 
-148 | 
-149 | if __name__ == "__main__":
-150 |     main()
+139 |     try:
+140 |         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+141 |         OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+142 |     except OSError:
+143 |         # Skip persist on read-only filesystems (e.g., serverless)
+144 |         pass
+145 | 
+146 | 
+147 | def main():
+148 |     data = check_releases(window_hours=1)
+149 |     write_output(data)
+150 |     print(f"Saved {data['count']} releases to {OUTPUT_PATH}")
+151 | 
+152 | 
+153 | if __name__ == "__main__":
+154 |     main()
 --------------------------------------------------------------------------------
 
 /api/a2_check_note.py:
@@ -206,7 +210,7 @@
  45 | 
  46 | def load_note_ids() -> List[str]:
  47 |     """Load note user IDs from spreadsheet2json output."""
- 48 |     data = load_spreadsheet_data()
+ 48 |     data = load_spreadsheet_data(persist=False)
  49 |     raw_ids = data.get("note_id", []) if isinstance(data, dict) else []
  50 |     ids: List[str] = []
  51 |     for note_id in raw_ids:
@@ -312,18 +316,22 @@
 151 | 
 152 | 
 153 | def write_output(data: Dict[str, Any]) -> None:
-154 |     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-155 |     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-156 | 
-157 | 
-158 | def main():
-159 |     data = check_notes(window_hours=1)
-160 |     write_output(data)
-161 |     print(f"Saved {data['count']} articles to {OUTPUT_PATH}")
-162 | 
-163 | 
-164 | if __name__ == "__main__":
-165 |     main()
+154 |     try:
+155 |         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+156 |         OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+157 |     except OSError:
+158 |         # Skip persist on read-only filesystems (e.g., serverless)
+159 |         pass
+160 | 
+161 | 
+162 | def main():
+163 |     data = check_notes(window_hours=1)
+164 |     write_output(data)
+165 |     print(f"Saved {data['count']} articles to {OUTPUT_PATH}")
+166 | 
+167 | 
+168 | if __name__ == "__main__":
+169 |     main()
 --------------------------------------------------------------------------------
 
 /api/a3_check_x.py:
@@ -358,7 +366,7 @@
  28 | 
  29 | def load_x_ids() -> List[str]:
  30 |     """Load X(Twitter) user IDs from spreadsheet2json output."""
- 31 |     data = load_spreadsheet_data()
+ 31 |     data = load_spreadsheet_data(persist=False)
  32 |     raw_ids = data.get("x_id", []) if isinstance(data, dict) else []
  33 |     ids: List[str] = []
  34 |     for x_id in raw_ids:
@@ -464,18 +472,22 @@
 134 | 
 135 | 
 136 | def write_output(data: Dict[str, Any]) -> None:
-137 |     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-138 |     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-139 | 
-140 | 
-141 | def main():
-142 |     data = check_x(window_hours=1)
-143 |     write_output(data)
-144 |     print(f"Saved {data['count']} tweets to {OUTPUT_PATH}")
-145 | 
-146 | 
-147 | if __name__ == "__main__":
-148 |     main()
+137 |     try:
+138 |         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+139 |         OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+140 |     except OSError:
+141 |         # Skip persist on read-only filesystems (e.g., serverless)
+142 |         pass
+143 | 
+144 | 
+145 | def main():
+146 |     data = check_x(window_hours=1)
+147 |     write_output(data)
+148 |     print(f"Saved {data['count']} tweets to {OUTPUT_PATH}")
+149 | 
+150 | 
+151 | if __name__ == "__main__":
+152 |     main()
 --------------------------------------------------------------------------------
 
 /api/b_send_slack.py:
@@ -1030,38 +1042,43 @@
  96 | 
  97 | 
  98 | def write_json(data: dict) -> None:
- 99 |     OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=True, indent=2), encoding="utf-8")
-100 | 
-101 | 
-102 | def load_spreadsheet_data(
-103 |     force_refresh: bool = False, *, persist: bool = True
-104 | ) -> Mapping[str, List[str]]:
-105 |     """
-106 |     Return parsed sheet data, optionally re-fetching the latest CSV.
-107 | 
-108 |     Falls back to re-fetching if the on-disk JSON is missing or invalid.
-109 |     When persist=False (e.g., API on read-only FS), skip writing the JSON cache.
+ 99 |     text = json.dumps(data, ensure_ascii=True, indent=2)
+100 |     try:
+101 |         OUTPUT_PATH.write_text(text, encoding="utf-8")
+102 |     except OSError:
+103 |         # Skip persisting when filesystem is read-only (e.g., serverless)
+104 |         pass
+105 | 
+106 | 
+107 | def load_spreadsheet_data(
+108 |     force_refresh: bool = False, *, persist: bool = True
+109 | ) -> Mapping[str, List[str]]:
 110 |     """
-111 |     if not force_refresh and OUTPUT_PATH.exists():
-112 |         try:
-113 |             return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
-114 |         except Exception:
-115 |             pass
-116 | 
-117 |     csv_text = fetch_sheet_csv()
-118 |     data = parse_ids(csv_text)
-119 |     if persist:
-120 |         write_json(data)
-121 |     return data
-122 | 
-123 | 
-124 | def main() -> None:
-125 |     csv_text = fetch_sheet_csv()
-126 |     data = parse_ids(csv_text)
-127 |     write_json(data)
+111 |     Return parsed sheet data, optionally re-fetching the latest CSV.
+112 | 
+113 |     Falls back to re-fetching if the on-disk JSON is missing or invalid.
+114 |     When persist=False (e.g., API on read-only FS), skip writing the JSON cache.
+115 |     """
+116 |     if not force_refresh and OUTPUT_PATH.exists():
+117 |         try:
+118 |             return json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+119 |         except Exception:
+120 |             pass
+121 | 
+122 |     csv_text = fetch_sheet_csv()
+123 |     data = parse_ids(csv_text)
+124 |     if persist:
+125 |         write_json(data)
+126 |     return data
+127 | 
 128 | 
-129 | 
-130 | if __name__ == "__main__":
-131 |     main()
+129 | def main() -> None:
+130 |     csv_text = fetch_sheet_csv()
+131 |     data = parse_ids(csv_text)
+132 |     write_json(data)
+133 | 
+134 | 
+135 | if __name__ == "__main__":
+136 |     main()
 --------------------------------------------------------------------------------
 

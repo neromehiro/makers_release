@@ -1,5 +1,5 @@
 {
-  "checked_at": "2025-12-07T06:22:52.739653+00:00",
+  "checked_at": "2025-12-07T08:59:38.205464+00:00",
   "window_hours": 1,
   "target_ids": [
     "bright_azalea589",
@@ -10,15 +10,16 @@
     "finn_inc",
     "readytobloomkoto",
     "chocoramu",
-    "piobeer"
+    "piobeer",
+    "saien_kikou"
   ],
   "count": 1,
   "articles": [
     {
-      "note_id": "chocoramu",
-      "url": "https://note.com/chocoramu/n/n91fe4ec542bd",
-      "title": "イギリス ミュージックビデオ チャート総合8位！　新曲 4日連続1位の快挙！",
-      "published_at": "2025-12-07T05:25:38+00:00"
+      "note_id": "saien_kikou",
+      "url": "https://note.com/saien_kikou/n/n32232584a639",
+      "title": "あなたは息より先にわたしを知っていた",
+      "published_at": "2025-12-07T08:51:38+00:00"
     }
   ]
 }

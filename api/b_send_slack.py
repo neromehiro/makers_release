@@ -185,6 +185,8 @@ def run_notification(window_hours: int = 1, *, persist_cache: bool = True) -> di
         "pr_count": len(pr_urls),
         "note_count": len(note_urls),
         "messages_sent": len(responses),
+        "pr_ids": pr_data.get("target_ids", []),
+        "note_ids": note_data.get("target_ids", []),
     }
     return summary
 
