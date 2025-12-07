@@ -132,20 +132,26 @@ def send_with_preview(url: str) -> requests.Response:
 
     label = _source_label(url)
     icon = _source_icon(url)
-    quoted = f"> *<{url}|{title}>*\n> {description}".strip()
-
-    context_elements: List[Dict[str, Any]] = []
+    quoted_lines = []
     if icon:
-        context_elements.append({"type": "image", "image_url": icon, "alt_text": label})
-    context_elements.append({"type": "mrkdwn", "text": label})
+        quoted_lines.append(f"> <{icon}|{label}> {label}")
+    else:
+        quoted_lines.append(f"> {label}")
+    quoted_lines.append(f"> {url}")
+    quoted_lines.append(f"> *{title}*")
+    if description:
+        quoted_lines.append(f"> {description}")
 
-    section: Dict[str, Any] = {"type": "section", "text": {"type": "mrkdwn", "text": quoted}}
-    if image:
-        section["accessory"] = {"type": "image", "image_url": image, "alt_text": title or "preview"}
+    accessory = (
+        {"type": "image", "image_url": image, "alt_text": title or "preview"} if image else None
+    )
 
     blocks: List[Dict[str, Any]] = [
-        {"type": "context", "elements": context_elements},
-        section,
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "\n".join(quoted_lines)},
+            **({"accessory": accessory} if accessory else {}),
+        }
     ]
 
     return send_to_slack(url, enable_unfurl=True, blocks=blocks)

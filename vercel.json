@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/prtimes_notify.py": {
-      "runtime": "python3.9"
-    }
-  },
   "crons": [
     {
       "path": "/api/prtimes_notify",
