@@ -73,7 +73,7 @@ def parse_rss(xml_bytes: bytes, note_id: str) -> List[Dict[str, Any]]:
     channel = root.find("channel")
     if channel is None:
         return []
-
+ 
     items: List[Dict[str, Any]] = []
     for item in channel.findall("item"):
         title = (item.findtext("title") or "").strip()
