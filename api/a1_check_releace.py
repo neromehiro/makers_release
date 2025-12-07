@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import requests
+ 
 
 SITEMAP_URL = "https://prtimes.jp/sitemap-news.xml"
 BASE_DIR = Path(__file__).resolve().parent.parent
