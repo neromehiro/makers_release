@@ -89,10 +89,11 @@ def filter_recent_releases(
     target_ids: List[str],
     window_hours: int = 1,
 ) -> List[Dict[str, Any]]:
-    """Filter releases to target company IDs within the last window_hours."""
+    """Filter releases to target company IDs in the previous clock window."""
     target_set = set(target_ids)
     now = datetime.now(timezone.utc)
-    window_start = now - timedelta(hours=window_hours)
+    window_end = now.replace(minute=0, second=0, microsecond=0)
+    window_start = window_end - timedelta(hours=window_hours)
     filtered: List[Dict[str, Any]] = []
 
     for r in releases:
@@ -102,7 +103,7 @@ def filter_recent_releases(
 
         if cid not in target_set:
             continue
-        if pub_dt_utc < window_start:
+        if pub_dt_utc < window_start or pub_dt_utc >= window_end:
             continue
 
         filtered.append(

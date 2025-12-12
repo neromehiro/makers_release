@@ -103,15 +103,16 @@ def parse_rss(xml_bytes: bytes, note_id: str) -> List[Dict[str, Any]]:
 
 
 def filter_recent(articles: List[Dict[str, Any]], window_hours: int = 1) -> List[Dict[str, Any]]:
-    """Return articles published within the last window_hours."""
+    """Return articles published in the previous clock window."""
     now = datetime.now(timezone.utc)
-    window_start = now - timedelta(hours=window_hours)
+    window_end = now.replace(minute=0, second=0, microsecond=0)
+    window_start = window_end - timedelta(hours=window_hours)
 
     filtered: List[Dict[str, Any]] = []
     for article in articles:
         pub_dt: datetime = article["published_at"]
         pub_dt_utc = pub_dt.astimezone(timezone.utc)
-        if pub_dt_utc < window_start:
+        if pub_dt_utc < window_start or pub_dt_utc >= window_end:
             continue
 
         filtered.append(
