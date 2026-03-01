@@ -1,30 +1,49 @@
 {
   "prtimes_id": [
+    "163379",
+    "129646",
+    "174043",
     "160639",
     "146060",
     "143991",
+    "147948",
+    "176474",
     "164581",
     "132671",
     "155295",
+    "135700",
     "127207",
     "155865",
-    "6302",
+    "143322",
     "167772",
     "152903",
     "140491",
+    "110515",
     "160334",
     "136673"
   ],
   "note_id": [
     "bright_azalea589",
+    "muse_of_art",
     "devesion",
+    "trass_niki",
     "intern_com",
     "reoleo29",
+    "chikarazuk_wow",
     "withpmai",
+    "studiostark",
+    "nanaha_mrt",
+    "lucatech",
+    "daiking_",
     "finn_inc",
+    "shark_kyoka17",
     "readytobloomkoto",
-    "nero1014",
-    "piobeer"
+    "rikooo0522",
+    "gaku062",
+    "mano_furui",
+    "mrtk_621",
+    "lirem_yabuuchi",
+    "0xfene"
   ],
   "x_id": [
     "@aida_tokyonoka",
@@ -46,12 +65,14 @@
     "メイン @nanaha_mrt / 遍路用サブ @nanaha_ohenro",
     "@lucatech_",
     "@shitaGanbaro",
+    "@ryo_godon",
     "@sakura__toyama",
     "@kyoka_blue17",
     "@infireachY",
     "@2QtzLB2JWt85349",
     "@daisy_koto124",
     "@zephyr_a_",
+    "@Riko41984144",
     "@gaku_edutech",
     "@mano_boba",
     "@MRTK_621",
@@ -68,7 +89,9 @@
       "note_id": "bright_azalea589",
       "x_id": "@f_u2m"
     },
-    "生駒 葫杏（=生駒 萌杏）": {
+    "生駒 萌杏": {
+      "prtimes_id": "163379",
+      "note_id": "muse_of_art",
       "x_id": "@moa_ikoma"
     },
     "泉本悠": {
@@ -78,10 +101,13 @@
       "x_id": "@Big_Gaa"
     },
     "上田 匡成": {
+      "prtimes_id": "129646",
       "note_id": "devesion",
       "x_id": "メイン @kyuriosuen / 会社 @devesion_ueda"
     },
     "越智 健心": {
+      "prtimes_id": "174043",
+      "note_id": "trass_niki",
       "x_id": "@2ndStar_niki"
     },
     "加藤 海風": {
@@ -108,6 +134,8 @@
       "x_id": "@shugo_kzi"
     },
     "小谷 瑞季": {
+      "prtimes_id": "147948",
+      "note_id": "chikarazuk_wow",
       "x_id": "@chikarazuk_wow"
     },
     "小谷 未知": {
@@ -118,15 +146,20 @@
     },
     "杉山誠一郎": {},
     "平翔馬": {
+      "note_id": "studiostark",
       "x_id": "@shoma_taira"
     },
     "高岡 奈々葉": {
+      "note_id": "nanaha_mrt",
       "x_id": "メイン @nanaha_mrt / 遍路用サブ @nanaha_ohenro"
     },
-    "高比良悠（=高比良ハルカ）": {
+    "高比良ハルカ": {
+      "prtimes_id": "176474",
+      "note_id": "lucatech",
       "x_id": "@lucatech_"
     },
     "竹内 大貴": {
+      "note_id": "daiking_",
       "x_id": "@shitaGanbaro"
     },
     "立原 大雅": {
@@ -137,13 +170,16 @@
     },
     "都築亮吾": {
       "prtimes_id": "155295",
-      "note_id": "finn_inc"
+      "note_id": "finn_inc",
+      "x_id": "@ryo_godon"
     },
     "遠山 さくら": {
       "x_id": "@sakura__toyama"
     },
     "中平陽菜": {},
     "中村京香": {
+      "prtimes_id": "135700",
+      "note_id": "shark_kyoka17",
       "x_id": "@kyoka_blue17"
     },
     "中村優花": {
@@ -159,36 +195,41 @@
       "x_id": "@daisy_koto124"
     },
     "根路銘啓": {
-      "prtimes_id": "6302",
-      "note_id": "nero1014"
+      "prtimes_id": "143322"
     },
     "ピークエイダン ゼファー": {
       "prtimes_id": "167772",
       "x_id": "@zephyr_a_"
     },
     "藤澤 李子": {
-      "prtimes_id": "152903"
+      "prtimes_id": "152903",
+      "note_id": "rikooo0522",
+      "x_id": "@Riko41984144"
     },
     "藤田岳": {
       "prtimes_id": "140491",
+      "note_id": "gaku062",
       "x_id": "@gaku_edutech"
     },
     "古井茉香": {
+      "note_id": "mano_furui",
       "x_id": "@mano_boba"
     },
     "堀田 大地": {},
-    "宮地 帝輔": {
-      "note_id": "piobeer"
-    },
+    "宮地 帝輔": {},
     "村上拓朗": {
+      "prtimes_id": "110515",
+      "note_id": "mrtk_621",
       "x_id": "@MRTK_621"
     },
     "籔内 龍介": {
       "prtimes_id": "160334",
+      "note_id": "lirem_yabuuchi",
       "x_id": "@ryuusuke__abc"
     },
     "山中 裕貴": {
       "prtimes_id": "136673",
+      "note_id": "0xfene",
       "x_id": "@yamanaka__yuki"
     },
     "山本翔人": {

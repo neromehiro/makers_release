@@ -149,7 +149,7 @@ def _source_icon(url: str) -> str:
     return ""
 
 
-def send_with_preview(url: str, *, name: str | None = None) -> requests.Response:
+def send_with_preview(url: str, *, name: Optional[str] = None) -> requests.Response:
     """Send a Slack message with manual preview via blocks."""
     meta = fetch_preview(url)
     title = meta.get("title") or url
