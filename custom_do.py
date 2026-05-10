@@ -25,7 +25,7 @@ END_AT_JST = None  # e.g. "2026-02-20 00:00"; None uses current time
 INCLUDE_CURRENT_HOUR = False  # False = match regular hourly window behavior
 CONFIRM_BEFORE_SEND = True  # True = create custom_do.json, then ask before sending
 DRY_RUN = False  # True = no Slack posts, just list output
-SLEEP_SECONDS = 0.3  # throttle Slack posts
+SLEEP_SECONDS = 0.3  # throttle Slack posts 
 # ===============================
 
 OUTPUT_JSON = Path("custom_do.json")
