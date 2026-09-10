@@ -71,7 +71,7 @@ def should_exclude(file_path):
     return False
 
 def dump_files_to_txt(target_dir):
-    """
+    """ 
     指定されたディレクトリ内のファイルを走査し、内容をdump_result.txtに出力する
     除外リストに含まれるファイルはスキップする 
     フォルダとファイルはアルファベット順にソートされる
